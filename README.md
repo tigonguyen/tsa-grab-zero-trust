@@ -25,6 +25,7 @@ Grab uses a production-ready Kubernetes cluster to run this architecture. For th
 ## Configurations steps
 ### Install and configure Vault
 1. Vault installation:
+
 In this section, we will set up a basic Vault cluster running on `minikube`. In the scope of this lab, we'll keep it on the same Kubernetes cluster but run it in a separate namespace to simulate a dedicated Vault cluster, similar to what Grab uses.
 
 First of all, we need to start our Minikube, which will be the main environment used for this lab. And then create a namespace dedicated for Vault cluster.
@@ -41,7 +42,7 @@ helm repo update
 helm install vault hashicorp/vault -n vault
 ```
 
-Wait until Vault is up and running. You should see output similar to this when executing the `kv get pod,svc`
+Wait until Vault is up and running. You should see output similar to this when executing the command `kv get pod,svc`
 ```
 NAME                                       READY   STATUS    RESTARTS   AGE
 pod/vault-0                                1/1     Running   0          40m
