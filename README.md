@@ -24,7 +24,7 @@ Grab uses a production-ready Kubernetes cluster to run this architecture. For th
 - vault installed, run as client to communicate with vault cluster on minikube
 ## Configurations steps
 ### Install and configure Vault
-1. Vault installation:
+#### 1. Vault installation:
 
 In this section, we will set up a basic Vault cluster running on `minikube`. In the scope of this lab, we'll keep it on the same Kubernetes cluster but run it in a separate namespace to simulate a dedicated Vault cluster, similar to what Grab uses.
 
