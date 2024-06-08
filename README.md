@@ -42,14 +42,71 @@ helm repo update
 helm install vault hashicorp/vault -n vault
 ```
 
-Wait until Vault is up and running. You should see output similar to this when executing the command `kv get pod,svc`
+Wait until Vault is up and running. You should see output similar to this when executing below command:
 ```
+$ kv get pod,svc
 NAME                                       READY   STATUS    RESTARTS   AGE
-pod/vault-0                                1/1     Running   0          40m
+pod/vault-0                                0/1     Running   0          40m
 pod/vault-agent-injector-d986fcb9b-ckrkv   1/1     Running   0          40m
 
 NAME                               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
 service/vault                      ClusterIP   10.99.87.187    <none>        8200/TCP,8201/TCP   40m
 service/vault-agent-injector-svc   ClusterIP   10.100.251.30   <none>        443/TCP             40m
 service/vault-internal             ClusterIP   None            <none>        8200/TCP,8201/TCP   40m
+```
+The vault-0 pod is not ready yet because we haven't unsealed Vault. First, expose the vault service so we can connect to it from our laptop. Use the `minikube service` feature:
+```
+$ minikube service -n vault vault
+|-----------|-------|-------------|--------------|
+| NAMESPACE | NAME  | TARGET PORT |     URL      |
+|-----------|-------|-------------|--------------|
+| vault     | vault |             | No node port |
+|-----------|-------|-------------|--------------|
+😿  service vault/vault has no node port
+🏃  Starting tunnel for service vault.
+|-----------|-------|-------------|------------------------|
+| NAMESPACE | NAME  | TARGET PORT |          URL           |
+|-----------|-------|-------------|------------------------|
+| vault     | vault |             | http://127.0.0.1:57974 |
+|           |       |             | http://127.0.0.1:57975 |
+|-----------|-------|-------------|------------------------|
+[vault vault  http://127.0.0.1:57974
+http://127.0.0.1:57975]
+❗  Because you are using a Docker driver on darwin, the terminal needs to be open to run it.
+```
+
+As the warning suggests, open a new terminal tab and use the following command to set up the connection. Remember to note the seal key and root token from the output:
+```
+export VAULT_ADDR='http://127.0.0.1:57974'
+vault operator init
+```
+Use below command or you can paste the URL to browser to unseal it directly (remember to replace your key):
+```
+vault operator unseal 1stxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+vault operator unseal 2ndxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+vault operator unseal 3rdxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+Verify the installation by checking pod:
+```
+$ kv get pod                                                        
+NAME                                   READY   STATUS    RESTARTS   AGE
+vault-0                                1/1     Running   0          82m
+vault-agent-injector-d986fcb9b-ckrkv   1/1     Running   0          82m
+```
+Verify by `vault status` command:
+```
+$ vault status
+Key             Value
+---             -----
+Seal Type       shamir
+Initialized     true
+Sealed          false
+Total Shares    5
+Threshold       3
+Version         1.16.1
+Build Date      2024-04-03T12:35:53Z
+Storage Type    file
+Cluster Name    vault-cluster-619e93d1
+Cluster ID      22768c9b-9983-7beb-9e12-3ac53a825848
+HA Enabled      false
 ```
