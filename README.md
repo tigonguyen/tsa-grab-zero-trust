@@ -24,7 +24,7 @@ Grab uses a production-ready Kubernetes cluster to run this architecture. For th
 - vault installed, run as client to communicate with vault cluster on minikube
 ## Configurations steps
 ### Install and configure Vault
-#### 1. Vault installation:
+#### 1. Install Vault:
 
 In this section, we will set up a basic Vault cluster running on `minikube`. In the scope of this lab, we'll keep it on the same Kubernetes cluster but run it in a separate namespace to simulate a dedicated Vault cluster, similar to what Grab uses.
 
@@ -35,7 +35,7 @@ kubectl create namespace vault
 alias kv='kubectl -n vault' # make an alias for future queries
 ```
 
-Add the HashiCorp Helm repository to your local Helm, then install Vault chart with the default values:
+Add the HashiCorp Helm repository to your local Helm, then install Vault chart with default values:
 ```
 helm repo add hashicorp https://helm.releases.hashicorp.com
 helm repo update
@@ -80,7 +80,7 @@ As the warning suggests, open a new terminal tab and use the following command t
 export VAULT_ADDR='http://127.0.0.1:57974'
 vault operator init
 ```
-Use below command or you can paste the URL to browser to unseal it directly (remember to replace your key):
+Use below command or you can paste the URL to browser to unseal it directly (remember to replace your keys):
 ```
 vault operator unseal 1stxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 vault operator unseal 2ndxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -109,4 +109,38 @@ Storage Type    file
 Cluster Name    vault-cluster-619e93d1
 Cluster ID      22768c9b-9983-7beb-9e12-3ac53a825848
 HA Enabled      false
+```
+#### 2. Setup PKI engine as Root CA:
+First, log in to Vault using the root token noted earlier. This approach should not be used in a production environment:
+```
+vault login <root-token>
+```
+Make sure the PKI engine is enabled in Vault:
+```
+vault secrets enable -path=pki pki
+vault secrets tune -max-lease-ttl=8760h pki
+# Generate a root CA certificate
+vault write pki/root/generate/internal \
+    common_name="tsa-grab-zero-trust.com" \
+    ttl=8760h
+# Configure the URLs for issuing certificates and CRL distribution points
+vault write pki/config/urls \
+    issuing_certificates="http://127.0.0.1:57974/v1/pki/ca" \
+    crl_distribution_points="http://127.0.0.1:57974/v1/pki/crl"
+```
+In this scenario, Strimzi will set up an intermediate CA within the `kafka` namespace, and this intermediate CA will be signed by the root CA managed by Vault in the `vault` namespace. We now configure Vault to handle intermediate CA signing requests. So, we need to create a role for issuing intermediate certificates:
+```
+# Create a role for issuing intermediate certificates
+vault write pki/roles/kafka-intermediate \
+    allowed_domains="kafka.cluster.local" \
+    allow_bare_domains=true \
+    allow_subdomains=true \
+    max_ttl="43800h"
+```
+Then, we retrieve the CA certificate from Vault and put it to a secret to prepare for next steps:
+```
+kubectl create namespace kafka
+vault read -field=certificate pki/ca > vault-ca.crt
+alias kk='kubectl -n kafka' # make an alias for future queries
+kk create secret generic vault-ca-cert --from-file=ca.crt=vault-ca.crt
 ```
